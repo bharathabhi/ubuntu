@@ -1,0 +1,74 @@
+###############################################
+# Name : Nataraju A B
+#        Assistant Professor,
+#			Dept. of ECE, AIT, Bangalore
+############################################### 
+
+#
+# ANALYSIS OF SIMULATION RESULTS ###
+#
+
+BEGIN{
+	totalPackets=0; 	totalBytes=0;		time=0;
+	tcpPktSize=0;		cbrPktSize=0;		Throughput=0.0;
+	simTime=0;			startTime=0;		stopTime=0;
+	cbrPktCnt=0;		tcpPktCnt=0;		
+}
+{
+	# $n indicates command line arguments 
+
+	# + 0.11 2 10 cbr 500 ------- 1 2.0 9.0 1 1
+	# h 0.11 2 10 cbr 1000 ------- 1 2.0 9.0 2 2
+	# + 0.11 2 10 cbr 1000 ------- 1 2.0 9.0  0 0
+	# 1   2  3  4  5    6     7    8  9   10 11 12     --> $n
+
+	event = $1
+	time = $2
+	appType = $5
+	srcNode = $3
+	dstNode = $4
+	curPktSize = $6
+
+	# Count number of TCP packets sent across link between LAN's (LAN-1 & LAN-2)
+0	if((event=="+") && (srcNode=="4") && (dstNode=="5") && (appType=="tcp") ) {
+		tcpPktCnt++;
+		tcpPktSize = curPktSize;
+	}
+
+	# Count number of CBR packets sent across link between LAN's (LAN-1 & LAN-2)
+	if((event=="+") && (srcNode=="4") && (dstNode=="5") && (appType=="cbr") ) {
+		cbrPktCnt++;
+		cbrPktSize = curPktSize;
+	}
+
+	# Find the simulation start time
+	if (time < startTime) {
+		startTime = time
+	}
+
+	# Find the simulation end time
+	if (time > stopTime) {
+		stopTime = time
+	}
+}
+
+END {
+	totalBytes = (tcpPktCnt * tcpPktSize + cbrPktCnt * cbrPktSize);
+	simTime = stopTime - startTime;
+	totalPackets = tcpPktCnt +cbrPktCnt;
+	Throughput = (totalBytes * 8.0)/(simTime*1000);
+
+	printf(" Total Packets sent (node 4 to 5) = %d Packets\n", totalPackets);
+	printf(" Total Bytes sent (node 4 to 5)   = %.3f KB\n", totalBytes);
+	printf(" The Simulation Time is =  %.3f Sec\n", simTime);
+	printf(" The Throughtput        =  %d Kbps\n", Throughput);
+	printf("\n\n");
+}
+
+####
+# END   ####
+
+#	printf(" Sim Start time   = %f \n", startTime);
+#	printf(" Sim Stop time   = %f \n", stopTime);
+#	printf(" TCP packet count   = %d \n", tcpPktCnt);
+#	printf(" CBR packet count   = %d \n", cbrPktCnt);
