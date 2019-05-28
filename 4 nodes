@@ -1,0 +1,91 @@
+
+#Creating a Simulator Object
+set myNS [new Simulator]
+
+#Setting up files for trace & NAM
+set tracefile [open out.tr w]
+set namfile   [open out.nam w]
+
+#Tracing files using their commands
+$myNS trace-all $tracefile
+$myNS namtrace-all $namfile
+
+#Creating NODES
+set n0 [$myNS node]
+set n1 [$myNS node]
+set n2 [$myNS node]
+set n3 [$myNS node]
+
+#Label the nodes
+$n0 label "TCP Source"
+$n1 label "UDP Source"
+$n2 label "Router"
+$n3 label "Sink/Null"
+
+#Define different colors for data flow
+$myNS color 1 blue
+$myNS color 2 red
+
+#Creating LINKS
+
+$myNS duplex-link $n0 $n2 2Mb   10ms DropTail
+$myNS duplex-link $n1 $n2 2Mb   10ms DropTail
+$myNS duplex-link $n2 $n3 1.0Mb 20ms DropTail
+
+$myNS queue-limit $n2 $n3 40
+
+#Node position for NAM
+$myNS duplex-link-op $n0 $n2 orient right-down
+$myNS duplex-link-op $n1 $n2 orient right-up
+$myNS duplex-link-op $n2 $n3 orient right
+
+#UDP Agent 
+set udp [new Agent/UDP]
+$myNS attach-agent $n1 $udp
+
+set null [new Agent/Null]
+$myNS attach-agent $n3 $null
+
+$myNS connect $udp $null
+$udp set fid_ 0
+
+#TCP Agent
+set tcp [new Agent/TCP]
+$myNS attach-agent $n0 $tcp
+
+set sink [new Agent/TCPSink]
+$myNS attach-agent $n3 $sink
+
+$myNS connect $tcp $sink
+$tcp set fid_ 1
+
+#CBR over UDP
+set cbr [new Application/Traffic/CBR]
+$cbr attach-agent $udp
+
+#FTP over TCP connection
+set ftp [new Application/FTP]
+$ftp attach-agent $tcp
+
+# simulation start and stop events
+$myNS at 0.1 "$cbr start"
+$myNS at 1.0 "$ftp start"
+$myNS at 4.0 "$ftp stop"
+$myNS at 4.5 "$cbr stop"
+$myNS at 5.0 "finish"
+
+
+#Closing trace file and starting NAM
+proc finish { } {
+	global myNS tracefile namfile 
+	$myNS flush-trace
+	close $tracefile
+	close $namfile
+	#	exec nam out.nam &
+	#	exec awk -f n1.awk out.tr &
+	exit 0 
+}
+
+# Initiate the simulation ....
+$myNS run
+
