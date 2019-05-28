@@ -1,0 +1,118 @@
+#Create an NS simulator
+set myNS [new Simulator]
+
+#Open the ns trace file
+set traceFile [open out.tr w]
+$myNS trace-all $traceFile
+
+#Open the NAM trace file
+set namFile [open out.nam w]
+$myNS namtrace-all $namFile
+
+#===================================
+#Nodes Definition
+#===================================
+#Create 5 nodes
+set n0 [$myNS node]
+set n1 [$myNS node]
+set n2 [$myNS node]
+set n3 [$myNS node]
+set n4 [$myNS node]
+
+#===================================
+#Links Definition
+# n0-A, n1-B, n2-C, n3-D, n4-E
+#===================================
+# Create links between nodes
+#Link between A<->B
+$myNS duplex-link $n0 $n1 100.0Mb 10ms DropTail
+$myNS queue-limit $n0 $n1 50
+
+#Link between A<->C
+$myNS duplex-link $n0 $n2 100.0Mb 10ms DropTail
+$myNS queue-limit $n0 $n2 50
+
+#Link between A<->D
+$myNS duplex-link $n0 $n3 100.0Mb 10ms DropTail
+$myNS queue-limit $n0 $n3 50
+
+#Link between B<->C
+$myNS duplex-link $n1 $n2 100.0Mb 10ms DropTail
+$myNS queue-limit $n1 $n2 50
+
+#Link between B<->E
+$myNS duplex-link $n1 $n4 100.0Mb 10ms DropTail
+$myNS queue-limit $n1 $n4 50
+
+#Link between C<->E
+$myNS duplex-link $n2 $n4 100.0Mb 10ms DropTail
+$myNS queue-limit $n2 $n4 50
+
+#Give node position (for NAM)
+$myNS duplex-link-op $n0 $n1 orient right
+$myNS duplex-link-op $n0 $n2 orient right-down
+$myNS duplex-link-op $n0 $n3 orient down
+$myNS duplex-link-op $n1 $n2 orient left-down
+$myNS duplex-link-op $n1 $n4 orient down
+$myNS duplex-link-op $n2 $n4 orient right-down
+
+# Set the link costs. All link costs are symmetric
+#Link cost between A<->B, A<->C , A<->D
+$myNS cost $n0 $n1 8
+$myNS cost $n0 $n2 14
+$myNS cost $n0 $n3 5
+
+#Link cost between B<->C, B<->E
+$myNS cost $n1 $n2 4
+$myNS cost $n1 $n4 3
+
+#Link cost between C<->E
+$myNS cost $n2 $n4 4
+
+#===================================
+#Agents Definition
+#===================================
+#Setup a UDP connection
+set udp0 [new Agent/UDP]
+$myNS attach-agent $n0 $udp0
+
+set null1 [new Agent/Null]
+$myNS attach-agent $n4 $null1
+# Connect the end point agents udp0@n0 and null1@n4
+$myNS connect $udp0 $null1
+$udp0 set packetSize_ 1500
+
+#===================================
+#ApplicatiomyNS Definition
+#===================================
+#Setup a CBR Application over UDP connection
+set cbr0 [new Application/Traffic/CBR]
+
+$cbr0 attach-agent $udp0
+$cbr0 set packetSize_ 1000
+$cbr0 set rate_ 1.0Mb
+$myNS at 1.0 "$cbr0 start"
+$myNS at 5.0 "$cbr0 stop"
+
+# Setup the routing protocol for the network (LS,DV, ...)
+
+$myNS rtproto LS
+
+#===================================
+#Termination
+#===================================
+#Define a 'finish' procedure
+proc finish {} {
+	global myNS traceFile namFile
+	$myNS flush-trace
+	close $traceFile
+	close $namFile
+	exec nam out.nam &
+	exit 0
+}
+
+$myNS at 10.0 "$myNS nam-end-wireless 10.0"
+$myNS at 10.0 "finish"
+
+# Initiate the simulation...
+$myNS run
